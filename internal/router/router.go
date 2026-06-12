@@ -62,7 +62,11 @@ func (r *Router) Match(path string) *Match {
 
 	var best *entry
 	for i := range s.entries {
-		if strings.HasPrefix(path, s.entries[i].prefix) {
+		prefix := s.entries[i].prefix
+		if !strings.HasPrefix(path, prefix) {
+			continue
+		}
+		if len(path) == len(prefix) || path[len(prefix)] == '/' {
 			best = &s.entries[i]
 			break
 		}

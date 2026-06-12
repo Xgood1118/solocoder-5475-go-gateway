@@ -152,15 +152,14 @@ func (g *Gateway) ProxyHandler() gin.HandlerFunc {
 			return
 		}
 
-		if u.BodySizeLimit > 0 && c.Request.ContentLength > u.BodySizeLimit {
-			g.metrics.RecordBodySizeExceed(upstreamName)
-			c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{
-				"error": "request body too large", "limit": u.BodySizeLimit, "request_id": fmt.Sprintf("%v", reqID),
-			})
-			return
-		}
-
-		if c.Request.ContentLength > 0 && u.BodySizeLimit > 0 {
+		if u.BodySizeLimit > 0 {
+			if c.Request.ContentLength > u.BodySizeLimit {
+				g.metrics.RecordBodySizeExceed(upstreamName)
+				c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{
+					"error": "request body too large", "limit": u.BodySizeLimit, "request_id": fmt.Sprintf("%v", reqID),
+				})
+				return
+			}
 			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, u.BodySizeLimit)
 		}
 

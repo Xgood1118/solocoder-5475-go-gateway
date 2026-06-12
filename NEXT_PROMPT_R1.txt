@@ -1,1 +1,1 @@
-深挖两个硬伤：路由前缀匹配用 HasPrefix 直接拼没分段边界，/api/users 这条规则会把 /api/users-secret/foo 也吸过来打 user-service；body 大小限制能用 chunked 绕过，ContentLength=-1 跳过检查，50MB chunked body 打 10MB 限制直接 200 转发。检查修复一下。
+路由前缀匹配用 HasPrefix 直接拼没分段边界，/api/users 这条规则会把 /api/users-secret/foo 也吸过来打 user-service；body 大小限制能用 chunked 绕过，ContentLength=-1 跳过检查，50MB chunked body 打 10MB 限制直接 200 转发，这个逻辑有问题。检查修复一下。
