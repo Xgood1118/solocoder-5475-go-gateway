@@ -1,0 +1,133 @@
+server:
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+
+logging:
+  level: info
+
+tracing:
+  enabled: true
+  service_name: api-gateway
+
+openapi:
+  enabled: true
+  title: API Gateway
+  version: "1.0.0"
+  description: Unified API Gateway
+
+ip_blacklist:
+  - 192.168.0.0/16
+  - 10.0.0.0/8
+
+upstreams:
+  - name: user-service
+    target: "http://localhost:9001"
+    dry_run: false
+    health_check:
+      enabled: true
+      interval: 5s
+    body_size_limit: 10485760
+    retry:
+      enabled: true
+      max_retries: 1
+      retry_interval: 100ms
+      retryable_status:
+        - 502
+        - 503
+        - 504
+      idempotent_methods:
+        - GET
+        - PUT
+        - DELETE
+
+  - name: order-service
+    target: "http://localhost:9002"
+    dry_run: false
+    health_check:
+      enabled: true
+      interval: 5s
+    body_size_limit: 5242880
+    retry:
+      enabled: true
+      max_retries: 1
+      retry_interval: 100ms
+      retryable_status:
+        - 502
+        - 503
+        - 504
+      idempotent_methods:
+        - GET
+        - PUT
+        - DELETE
+
+  - name: user-service-v2
+    target: "http://localhost:9011"
+    dry_run: false
+    health_check:
+      enabled: true
+      interval: 5s
+    body_size_limit: 10485760
+    retry:
+      enabled: true
+      max_retries: 1
+      retry_interval: 100ms
+      retryable_status:
+        - 502
+        - 503
+        - 504
+      idempotent_methods:
+        - GET
+        - PUT
+        - DELETE
+
+routes:
+  - path_prefix: /api/users
+    upstream: user-service
+    strip_prefix: /api/users
+    add_prefix: /v1/internal/users
+    auth_hooks:
+      - type: inject_header
+        header: X-Internal-Token
+        env_var: USER_SERVICE_TOKEN
+    canary:
+      enabled: true
+      variants:
+        - upstream: user-service
+          weight: 90
+        - upstream: user-service-v2
+          weight: 10
+    stain:
+      canary_header: X-Canary
+      custom_headers:
+        X-Traffic-Type: canary
+    rate_limit:
+      rps: 1000
+      max_concurrent: 100
+      mode: ip
+    breaker:
+      enabled: true
+      threshold: 5
+      timeout: 30s
+
+  - path_prefix: /api/orders
+    upstream: order-service
+    strip_prefix: /api/orders
+    add_prefix: /v1/orders
+    auth_hooks: []
+    canary:
+      enabled: false
+    rate_limit:
+      rps: 500
+      max_concurrent: 50
+      mode: token
+    breaker:
+      enabled: true
+      threshold: 3
+      timeout: 30s
+
+  - path_prefix: /ws
+    upstream: user-service
+    websocket: true
+    strip_prefix: /ws
+    add_prefix: ""
